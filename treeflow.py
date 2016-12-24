@@ -76,13 +76,13 @@ def treeflow(fs, child_inds, leaves_inds, leaves, node_inputs = [], has_outputs 
             #return a.write(child_ind[-1], f(*(children+extra_inputs)))
             ans = fs(*(children+list(extra_inputs))) #extra_inputs is tuple
         if has_outputs:
-            return (ans[1], a.write(child_ind[-1],ans[0]))
+            return (a.write(child_ind[-1],ans[0]), ans[1])
         else:
             return a.write(child_ind[-1], ans)
     #write results of computations
     #a = tf.foldl(parent_step, child_inds, a) DOES NOT WORK because tensor arrays don't work with foldl.
     def parent_step_output(i, a, o, child_ind, *extra_inputs):
-        (ans, a1) = parent_step(a, child_ind, *extra_inputs)
+        (a1, ans) = parent_step(a, child_ind, *extra_inputs)
         return (a1,o.write(i, ans))
     if has_outputs:
         output_array = tf.TensorArray(output_type, size=1, dynamic_size=True)
@@ -98,7 +98,7 @@ def treeflow(fs, child_inds, leaves_inds, leaves, node_inputs = [], has_outputs 
     * If has_outputs == False, `fs` is t,*args -> tensor of t's
     * If has_outputs == True, `fs` is t,*args -> (tensor of t's, output)
 """
-def treefold_unfold(fs, child_inds, root_ind, root, read_inds, node_inputs = [], has_outputs = False, def_size=10, ans_type=tf.float32, output_type=tf.float32, degree=2):
+def treeflow_unfold(fs, child_inds, root_ind, root, read_inds, node_inputs = [], has_outputs = False, def_size=10, ans_type=tf.float32, output_type=tf.float32, degree=2):
     #create tensor array
     init_array = tf.TensorArray(ans_type, size=def_size, dynamic_size=True)
     #write value to root
@@ -113,12 +113,12 @@ def treefold_unfold(fs, child_inds, root_ind, root, read_inds, node_inputs = [],
             a = a.scatter(child_ind[:-1], ans)
             return a
     def branch_step_output(i, a, o, child_ind, *extra_inputs):
-        (ans, a) = branch_step(a, child_ind, *extra_inputs)
+        (a, ans) = branch_step(a, child_ind, *extra_inputs)
         return (a,o.write(i, ans))
     if has_outputs:
         output_array = tf.TensorArray(output_type, size=1, dynamic_size=True)
         #(_, a1) = tf.while_loop(lambda i, a: i<tf.shape(li1)[0], lambda i, a: (i+1, f(a, li1[i], li2[i])), (0,init))
-        (_, a2, oa) = tf.while_loop(lambda i, a, o: i>=0, lambda i, a, o: triplet_flatten((i-1, branch_step_output(i, a, o, child_inds[i], *[li[i] for li in node_inputs]))), (tf.shape(child_inds)[0], a1, output_array))
+        (_, a2, oa) = tf.while_loop(lambda i, a, o: i>=0, lambda i, a, o: triplet_flatten((i-1, branch_step_output(i, a, o, child_inds[i], *[li[i] for li in node_inputs]))), (tf.shape(child_inds)[0]-1, a1, output_array))
         return (a2.gather(read_inds), oa.pack())
     else:
         #for v0.12, reverse_v2(child_inds,[0])
@@ -149,11 +149,11 @@ def test():
     ans = sess.run(t)
     print(ans)
     #stack for v0.12
-    t = treefold_unfold(lambda x: tf.pack([x/2, x/2]), tf.constant([[0,1,3], [3,2,4]]), tf.constant(4), tf.constant(8.0), tf.constant([0,1,2]))
+    t = treeflow_unfold(lambda x: tf.pack([x/2, x/2]), tf.constant([[0,1,3], [3,2,4]]), tf.constant(4), tf.constant(8.0), tf.constant([0,1,2]))
     sess = tf.Session()
     ans = sess.run(t)
     print(ans)
-    t = treefold_unfold(lambda x, y: (tf.pack([x/2, x/2]), x+y), tf.constant([[0,1,3], [3,2,4]]), tf.constant(4), tf.constant(8.0), tf.constant([0,1,2]), node_inputs = [tf.constant([10.0,20.0])], has_outputs = True)
+    t = treeflow_unfold(lambda x, y: (tf.pack([x/2, x/2]), x+y), tf.constant([[0,1,3], [3,2,4]]), tf.constant(4), tf.constant(8.0), tf.constant([0,1,2]), node_inputs = [tf.constant([10.0,20.0])], has_outputs = True)
     sess = tf.Session()
     ans = sess.run(t)
     print(ans)
