@@ -18,6 +18,7 @@ def concat(lli, s='l'):
         return("".join(lli))
     else:
         return list(itertools.chain.from_iterable(lli))
+#http://stackoverflow.com/questions/952914/making-a-flat-list-out-of-list-of-lists-in-python
 
 def lines(s):
     return s.split('\n')
