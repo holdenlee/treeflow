@@ -105,7 +105,7 @@ def treefold_unfold(fs, child_inds, root_ind, root, read_inds, node_inputs = [],
     a1 = init_array.write(root_ind,root)
     #propagate to children
     def branch_step(a, child_ind, *extra_inputs):
-        anss = fs(a.read(child_ind[-1]),*extra_inputs)
+        ans = fs(a.read(child_ind[-1]),*extra_inputs)
         if has_outputs:
             a = a.scatter(child_ind[:-1], ans[0])
             return (a,ans[1])
@@ -121,7 +121,8 @@ def treefold_unfold(fs, child_inds, root_ind, root, read_inds, node_inputs = [],
         (_, a2, oa) = tf.while_loop(lambda i, a, o: i>=0, lambda i, a, o: triplet_flatten((i-1, branch_step_output(i, a, o, child_inds[i], *[li[i] for li in node_inputs]))), (tf.shape(child_inds)[0], a1, output_array))
         return (a2.gather(read_inds), oa.pack())
     else:
-        a2 = foldn(parent_step, a1, reversed(child_inds), *node_inputs)
+        #for v0.12, reverse_v2(child_inds,[0])
+        a2 = foldn(branch_step, a1, tf.reverse(child_inds,[True, False]), *node_inputs)
         return a2.gather(read_inds)
 
 def test():
