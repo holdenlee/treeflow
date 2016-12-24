@@ -153,6 +153,10 @@ def test():
     sess = tf.Session()
     ans = sess.run(t)
     print(ans)
+    t = treefold_unfold(lambda x, y: (tf.pack([x/2, x/2]), x+y), tf.constant([[0,1,3], [3,2,4]]), tf.constant(4), tf.constant(8.0), tf.constant([0,1,2]), node_inputs = [tf.constant([10.0,20.0])], has_outputs = True)
+    sess = tf.Session()
+    ans = sess.run(t)
+    print(ans)
 
 if __name__=="__main__":
     test()
